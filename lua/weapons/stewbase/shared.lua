@@ -127,35 +127,63 @@ function SWEP:Think()
 	end
 end
 
-if CLIENT then
-	CreateClientConVar("stew_camera", 1, true, false)
-	local stance = 0
-	local pose_stand = { 24, -64, 64 }
-	local pose_duck = { 24, -48, 48 }
-	function SWEP:CalcView( ply, pos, ang, fov )
-		if GetConVar("stew_camera"):GetBool() then
-			local tang = ang
-			local tpos = Vector()
+CreateClientConVar("stew_camera", 0, true, false)
 
-			local tmod = { 0, 0, 0 }
-			tmod[1] = Lerp( stance, pose_stand[1], pose_duck[1] )
-			tmod[2] = Lerp( stance, pose_stand[2], pose_duck[2] )
-			tmod[3] = Lerp( stance, pose_stand[3], pose_duck[3] )
+local stance = 0
+local pose_stand = { 24, -64, 0 }
+local pose_duck = { 16, -48, 0 }
 
-			tpos:Add( tang:Right() * tmod[1] )
-			tpos:Add( tang:Forward() * tmod[2] )
-			tpos:Add( tang:Up() * tmod[3] )
-			tpos:Add( ply:GetPos() )
-			
-			stance = math.Approach( stance, ( ply:KeyDown( IN_DUCK ) ) and 1 or 0, FrameTime() / 0.2 )
-			local view = {
-				origin = tpos,
-				angles = tang,
-				fov = 75,
-				drawviewer = true
-			}
+local eye_stand = 64
+local eye_duck = 48
 
-			return view
+hook.Add("CalcView", "STEW_TP", function( ply, pos, angles, fov )
+	if GetConVar("stew_camera"):GetBool() then
+		local tang = angles
+		local tpos = Vector()
+		local smoothed = math.ease.InOutSine( stance )
+
+		local tmod = { 0, 0, 0 }
+		tmod[1] = Lerp( smoothed, pose_stand[1], pose_duck[1] )
+		tmod[2] = Lerp( smoothed, pose_stand[2], pose_duck[2] )
+		tmod[3] = Lerp( smoothed, pose_stand[3], pose_duck[3] )
+
+		tpos:Add( tang:Right() * tmod[1] )
+		tpos:Add( tang:Forward() * tmod[2] )
+		tpos:Add( tang:Up() * tmod[3] )
+
+		local starter = ply:GetPos()
+		starter = Vector( starter.x, starter.y, starter.z + Lerp( smoothed, eye_stand, eye_duck ) )
+		tpos:Add( starter )
+
+		local trace = util.TraceLine({
+			start = starter,
+			endpos = tpos,
+			filter = ply
+		})
+
+		local hitter = trace.HitPos
+		if trace.Fraction then
+			hitter:Add( trace.HitNormal*4 )
 		end
+
+		local view = {
+			origin = hitter,
+			angles = tang,
+			fov = 75,
+			drawviewer = true
+		}
+
+		stance = math.Approach( stance, ( ply:KeyDown( IN_DUCK ) ) and 1 or 0, FrameTime() / 0.3 )
+
+		return view
 	end
-end
+end)
+
+hook.Add( "StartCommand", "STEW_StartCommand", function( ply, cmd )
+	if CLIENT then
+		--print(ply:EyePos(), EyePos())
+		debugoverlay.Cross(ply:EyePos(), 16, 0.05)
+		debugoverlay.Cross(EyePos(), 16, 0.05)
+		debugoverlay.Line(ply:EyePos(), EyePos(), 0.05)
+	end
+end)
