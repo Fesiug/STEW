@@ -135,10 +135,14 @@ local pose_duck = { 16, -48, 0 }
 
 local eye_stand = 64
 local eye_duck = 48
+local globhit = Vector()
+local globang = Angle()
+
+local waga = Angle()
 
 hook.Add("CalcView", "STEW_TP", function( ply, pos, angles, fov )
 	if GetConVar("stew_camera"):GetBool() then
-		local tang = angles
+		local tang = waga
 		local tpos = Vector()
 		local smoothed = math.ease.InOutSine( stance )
 
@@ -173,6 +177,9 @@ hook.Add("CalcView", "STEW_TP", function( ply, pos, angles, fov )
 			drawviewer = true
 		}
 
+		globhit:Set( hitter )
+		globang:Set( tang )
+
 		stance = math.Approach( stance, ( ply:KeyDown( IN_DUCK ) ) and 1 or 0, FrameTime() / 0.3 )
 
 		return view
@@ -181,9 +188,35 @@ end)
 
 hook.Add( "StartCommand", "STEW_StartCommand", function( ply, cmd )
 	if CLIENT then
-		--print(ply:EyePos(), EyePos())
-		debugoverlay.Cross(ply:EyePos(), 16, 0.05)
-		debugoverlay.Cross(EyePos(), 16, 0.05)
-		debugoverlay.Line(ply:EyePos(), EyePos(), 0.05)
+		local time = 0
+		--print(ply:EyePos(), globhit)
+		debugoverlay.Cross(ply:EyePos(), 16, time)
+		debugoverlay.Cross(globhit, 16, time)
+		--debugoverlay.Line(ply:EyePos(), globhit, time)
+
+
+		local tr1 = util.TraceLine({
+			start = ply:EyePos(),
+			endpos = ply:EyePos() + (ply:EyeAngles():Forward()*10000),
+			filter = ply
+		})
+
+		local tr2 = util.TraceLine({
+			start = globhit,
+			endpos = globhit + (globang:Forward()*10000),
+			filter = ply
+		})
+
+		debugoverlay.Cross(tr1.HitPos, 16, time, Color(255, 0, 0))
+		debugoverlay.Cross(tr2.HitPos, 16, time, Color(0, 0, 255))
+
+		cmd:SetViewAngles( (tr2.HitPos-tr1.StartPos):Angle() )
+
+		waga:Add( Angle( cmd:GetMouseY() * 0.022, cmd:GetMouseX() * -0.022, 0 ) )
+
+		cmd:ClearMovement()
+		cmd:SetForwardMove( cmd:KeyDown( IN_FORWARD ) and 1000 or cmd:KeyDown( IN_BACK ) and -1000 or 0 )
+		cmd:SetSideMove( cmd:KeyDown( IN_MOVERIGHT ) and 1000 or cmd:KeyDown( IN_MOVELEFT ) and -1000 or 0 )
+
 	end
 end)
