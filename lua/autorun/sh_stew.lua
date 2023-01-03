@@ -1,6 +1,9 @@
 
 -- STEW is by Fesiug, made in 2023!
 
+CreateConVar( "stew_mod_mgsv", 0, FCVAR_ARCHIVE + FCVAR_REPLICATED )
+CreateClientConVar("stew_camera", 0, true, false)
+
 STEW = {}
 
 STEW.SoundBank = {}
