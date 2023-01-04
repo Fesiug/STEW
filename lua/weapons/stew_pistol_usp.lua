@@ -12,6 +12,7 @@ SWEP.PrintName				= "USP"
 SWEP.Category				= "STEW - Pistols"
 SWEP.Description			= [[German full-sized precision handgun in the venerable .45 ACP round.]]
 SWEP.Slot					= 1
+SWEP.XHairMode				= "pistol"
 
 --
 -- Appearance
@@ -46,3 +47,16 @@ SWEP.Firemodes				= {
 		Mode = 1,
 	}
 }
+
+--
+-- Damage
+--
+SWEP.DamageNear				= 30
+SWEP.RangeNear				= 100
+SWEP.DamageFar				= 22
+SWEP.RangeFar				= 300
+SWEP.Force					= 2
+
+-- misc
+SWEP.ReloadingTime			= 1.5
+SWEP.ReloadingLoadTime		= 0.75

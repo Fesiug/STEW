@@ -12,6 +12,7 @@ SWEP.PrintName				= "M4A1"
 SWEP.Category				= "STEW - Carbines"
 SWEP.Description			= [[Automatic lightweight assault carbine. Fast firing, reliable, and and fairly accurate. Used by the US military.]]
 SWEP.Slot					= 2
+SWEP.XHairMode				= "rifle"
 
 --
 -- Appearance
@@ -50,3 +51,16 @@ SWEP.Firemodes				=
 		Mode = 1,
 	}
 }
+
+--
+-- Damage
+--
+SWEP.DamageNear				= 30
+SWEP.RangeNear				= 100
+SWEP.DamageFar				= 22
+SWEP.RangeFar				= 300
+SWEP.Force					= 2
+
+-- misc
+SWEP.ReloadingTime			= 2
+SWEP.ReloadingLoadTime		= 1

@@ -14,6 +14,7 @@ SWEP.PrintName				= "STEW base"
 SWEP.Category				= "Your Category Here"
 SWEP.Description			= [[Where it all starts!]]
 SWEP.Slot					= 2
+SWEP.XHairMode				= "pistol"
 
 --
 -- Appearance
@@ -49,6 +50,19 @@ SWEP.Firemodes				=
 		Mode = math.huge,
 	}
 }
+
+--
+-- Damage
+--
+SWEP.DamageNear				= 30
+SWEP.RangeNear				= 100
+SWEP.DamageFar				= 22
+SWEP.RangeFar				= 300
+SWEP.Force					= 2
+
+-- misc
+SWEP.ReloadingTime			= 2
+SWEP.ReloadingLoadTime		= 1
 
 
 --
@@ -157,17 +171,15 @@ function SWEP:Holster( ent )
 	if ent == self then return end
 
 	if self:GetHolster_Time() != 0 and self:GetHolster_Time() <= CurTime() or IsValid( self:GetHolster_Entity() ) or !IsValid( ent ) then
-		print("dude")
 		self:SetHolster_Time(0)
 		self:SetHolster_Entity( NULL )
 		return true
 	elseif GetConVar("stew_mod_mgsv"):GetBool() then
 		return true
 	elseif !IsValid(self:GetHolster_Entity()) then
-		print("STOP", self:GetHolster_Entity())
 		self:CallOnClient("TPHolster")
-		self:SetReloadingTime(CurTime() + 0.5)
-		self:SetHolster_Time(CurTime() + 0.5)
+		self:SetReloadingTime(CurTime() + 0.25)
+		self:SetHolster_Time(CurTime() + 0.25)
 		self:SetHolster_Entity( ent )
 	end
 end
@@ -231,7 +243,7 @@ function SWEP:Reload()
 	if CurTime() < self:GetReloadingTime() then
 		return false
 	end
-	if self:Clip1() <= self.Primary.ClipSize then
+	if self:Clip1() >= self.Primary.ClipSize then
 		return false
 	end
 	if self:GetOwner():KeyDown(IN_USE) then
@@ -244,8 +256,8 @@ function SWEP:Reload()
 
 	self:CallOnClient("TPReload")
 
-	self:SetLoadingTime(CurTime() + 2)
-	self:SetReloadingTime(CurTime() + 2)
+	self:SetReloadingTime(CurTime() + self.ReloadingTime)
+	self:SetLoadingTime(CurTime() + self.ReloadingLoadTime)
 end
 
 function SWEP:TPAttack()
@@ -288,7 +300,7 @@ function SWEP:Think()
 					self:CallOnClient("TPHolster")
 				elseif doit == 2 then
 					self:CallOnClient("TPDraw")
-					self:SetReloadingTime(CurTime() + 0.3)
+					self:SetReloadingTime( math.max( self:GetReloadingTime(), CurTime() + 0.3 ) )
 				end
 				doit2 = doit
 			end
@@ -314,7 +326,7 @@ function SWEP:Think()
 end
 
 function SWEP:DrawWorldModel( flags )
-	if !self:GetUserSight() and self:GetReloadingTime() <= CurTime() and GetConVar("stew_mod_mgsv"):GetBool() then
+	if !self:GetUserSight() and self:GetReloadingTime() <= CurTime() and GetConVar("stew_mod_mgsv"):GetBool() or self:GetHolster_Time() != 0 then
 		return false
 	else
 		self:DrawModel( flags )
@@ -569,7 +581,7 @@ hook.Add("HUDPaint", "STEW_3DCrosshair", function()
 					surface.SetMaterial( mat2 )
 					surface.DrawTexturedRectRotated( poosx, poosy - gap, s(16), s(16), 0 )
 					surface.DrawTexturedRectRotated( poosx, poosy + gap, s(16), s(16), 0 )
-				elseif wep.XHairMode != "rifle" then
+				elseif wep.XHairMode == "smg" then
 					surface.SetMaterial( mat1 )
 					surface.DrawTexturedRectRotated( poosx, poosy + gap + s(spacer_long), s(16), s(16), 90 )
 					surface.DrawTexturedRectRotated( poosx - (math.sin(math.rad(45))*gap) - (math.sin(math.rad(45))*s(spacer_long)), poosy - (math.sin(math.rad(45))*gap) - (math.sin(math.rad(45))*s(spacer_long)), s(16), s(16), -45 )
