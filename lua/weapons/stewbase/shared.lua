@@ -402,8 +402,9 @@ local globhit = Vector()
 local globang = Angle()
 
 waga = waga or Angle()
-
 local ptimei = 0
+local astw2blend = 0
+
 hook.Add("CalcView", "STEW_TP", function( ply, pos, angles, fov )
 	local w = ply:GetActiveWeapon()
 	local scam = GetConVar("stew_camera"):GetInt()
@@ -420,7 +421,13 @@ hook.Add("CalcView", "STEW_TP", function( ply, pos, angles, fov )
 		local sighted = 0
 		local ptime = 0
 		if w then
-			sighted = math.ease.InOutSine( w.GetSightDelta and (1-w:GetSightDelta()) or w.GetAim and (w:GetAim()) or (w:GetNWBool( "insights", false ) == true and 1) or 0 )
+			local whatever = 0
+			if w.ArcCW then whatever = (1-w:GetSightDelta()) end
+			if w.ARC9 then whatever = w:GetSightDelta() end
+			if w.STEW then whatever = w:GetAim() end
+			astw2blend = math.Approach( astw2blend, (w:GetNWBool( "insights", false ) == true) and 1 or 0, FrameTime() / 0.3 )
+			whatever = whatever + astw2blend
+			sighted = math.ease.InOutSine( whatever )
 		end
 		if ply.IsProne then
 			ptimei = math.Approach( ptimei, ( ply:GetProneAnimationState() == PRONE_GETTINGDOWN or ply:GetProneAnimationState() == PRONE_INPRONE ) and 1 or 0, FrameTime() / 0.8 )
@@ -518,9 +525,9 @@ hook.Add( "StartCommand", "STEW_StartCommand", function( ply, cmd )
 			if IsValid(w) and w.AdjustMouseSensitivity then
 				muul = w:AdjustMouseSensitivity() or muul
 			end
-			waga:Add( Angle( cmd:GetMouseY() * 0.022 * muul, cmd:GetMouseX() * -0.022 * muul, 0 ) )
 			waga:Sub( ( lastviewangles - cmd:GetViewAngles() ) )
 			waga.x = math.Clamp( waga.x, -89, 89 )
+			waga.z = 0
 			waga:Normalize()
 
 			local w = ply:GetActiveWeapon()
