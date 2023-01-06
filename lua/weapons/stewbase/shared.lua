@@ -58,7 +58,7 @@ SWEP.DamageNear				= 30
 SWEP.RangeNear				= 100
 SWEP.DamageFar				= 22
 SWEP.RangeFar				= 300
-SWEP.Force					= 2
+SWEP.Force					= 5
 
 -- misc
 SWEP.ReloadingTime			= 2
@@ -91,12 +91,14 @@ function SWEP:SetupDataTables()
 	self:NetworkVar("Int", 1, "Firemode")
 	self:NetworkVar("Int", 2, "ShotgunReloading")
 	self:NetworkVar("Int", 3, "CycleCount")
+	self:NetworkVar("Int", 4, "TotalShotCount")
 
 	self:NetworkVar("Float", 0, "NextFire")
 	self:NetworkVar("Float", 1, "Aim")
 	self:NetworkVar("Float", 2, "ReloadingTime")
 	self:NetworkVar("Float", 3, "LoadingTime")
 	self:NetworkVar("Float", 4, "Holster_Time")
+	self:NetworkVar("Float", 5, "SprintPer")
 
 	self:NetworkVar("Entity", 4, "Holster_Entity")
 	self.Primary.DefaultClip = self.Primary.ClipSize * 1
@@ -112,12 +114,28 @@ local function quickie(en)
 	end
 end
 
+local function getdamagefromrange( dmg_near, dmg_far, range_near, range_far, dist )
+	local min, max = range_near, range_far
+	local range = dist
+	local XD = 0
+	if range < min then
+		XD = 0
+	else
+		XD = math.Clamp((range - min) / (max - min), 0, 1)
+	end
+
+	return math.ceil( Lerp( XD, dmg_near, dmg_far ) )
+end
+
 function SWEP:PrimaryAttack()
 	local p = self:GetOwner()
 	if CurTime() < self:GetNextFire() then
 		return false
 	end
 	if CurTime() < self:GetReloadingTime() then
+		return false
+	end
+	if self:GetSprintPer() > 0.2 then
 		return false
 	end
 	if self:Clip1() <= 0 then
@@ -130,23 +148,48 @@ function SWEP:PrimaryAttack()
 	self:SetNextFire( CurTime() + self.Delay )
 	self:SetClip1( self:Clip1() - 1 )
 	self:SetBurstCount( self:GetBurstCount() + 1 )
+	self:SetTotalShotCount( self:GetTotalShotCount() + 1 )
 	self:CallOnClient("TPAttack")
+
+	local shotthing1 = 150+((self:GetTotalShotCount()+0)%3)
+	local shotthing2 = 154+((self:GetTotalShotCount()+1)%3)
+	local shotthing3 = 158+((self:GetTotalShotCount()+2)%3)
 
 	if #self.Sound_Blast > 0 then
 		self.Sound_Blast["BaseClass"] = nil
-		local detail = self.Sound_Blast[math.Round(util.SharedRandom("STEW_SoundBlast", 1, #self.Sound_Blast))]
-		self:EmitSound( detail, 130, 100, 0.5, 136+1 )
+		local detail = self.Sound_Blast[math.Round(util.SharedRandom("STEW_SoundBlast1", 1, #self.Sound_Blast))]
+		self:EmitSound( detail, 80, 100, 0.8, shotthing1 )
 	end
 
+	if #self.Sound_Mech > 0 then
+		self.Sound_Mech["BaseClass"] = nil
+		local detail = self.Sound_Mech[math.Round(util.SharedRandom("STEW_SoundBlast2", 1, #self.Sound_Mech))]
+		self:EmitSound( detail, 90, 100, 1, shotthing2 )
+	end
+
+	if #self.Sound_Tail > 0 then
+		self.Sound_Tail["BaseClass"] = nil
+		local detail = self.Sound_Tail[math.Round(util.SharedRandom("STEW_SoundBlast2", 1, #self.Sound_Tail))]
+		self:EmitSound( detail, 160, 100, 1, shotthing3 )
+	end
+
+	local bullet = self
 	self:FireBullets({
 		Attacker = IsValid(p) and p or self,
-		Damage = 20,
-		Force = 1,
+		Damage = 0,
+		Force = self.Force,
 		Tracer = 0,
 		Dir = p:EyeAngles():Forward(),
 		Src = p:EyePos(),
-		Callback = function( atk, tr, dmginfo )
+		Callback = function( atk, tr, dmg )
+			local ent = tr.Entity
 
+			if self.CustomCallback then self:CustomCallback( atk, tr, dmg ) end
+
+			dmg:SetDamage( bullet.DamageNear )
+			dmg:SetDamageType( DMG_BULLET )
+
+			dmg:SetDamage( getdamagefromrange( bullet.DamageNear, bullet.DamageFar, bullet.RangeNear, bullet.RangeFar, atk:GetPos():Distance(tr.HitPos) ) )
 		end
 	})
 
@@ -278,6 +321,8 @@ end
 
 local doit = 1
 local doit2 = 1
+local poit = 1
+local poit2 = 1
 function SWEP:Think()
 	local p = self:GetOwner()
 	if IsValid(p) then
@@ -285,9 +330,11 @@ function SWEP:Think()
 		if self:GetAim() > 0.2 then
 			ht = self.HoldTypeSight
 		end
-		if p:IsSprinting() then
+		local spint = self:GetSprintPer() > 0.2
+		if spint then
 			ht = self.HoldTypeSprint
 		end
+		self:SetSprintPer( math.Approach( self:GetSprintPer(), p:IsSprinting() and 1 or 0, FrameTime() / 0.3 ) )
 		if GetConVar("stew_mod_mgsv"):GetBool() then
 			if !self:GetUserSight() and self:GetReloadingTime() <= CurTime() then
 				ht = "normal"
@@ -309,10 +356,12 @@ function SWEP:Think()
 		self:SetWeaponHoldType( ht )
 
 		self:SetUserSight( p:KeyDown( IN_ATTACK2 ) )
-		self:SetAim( math.Approach( self:GetAim(), self:GetUserSight() and 1 or 0, FrameTime() / 0.4 ) )
+		self:SetAim( math.Approach( self:GetAim(), (self:GetUserSight() and !spint) and 1 or 0, FrameTime() / 0.4 ) )
 
 		if self:GetLoadingTime() != 0 and self:GetLoadingTime() <= CurTime() then
-			self:SetClip1(self.Primary.ClipSize)
+			local needtoload = math.min( self.Primary.ClipSize - self:Clip1(), self:Ammo1() )
+			self:SetClip1(self:Clip1() + needtoload)
+			self:GetOwner():RemoveAmmo( needtoload, self.Primary.Ammo )
 			self:SetLoadingTime( 0 )
 		end
 
@@ -326,7 +375,7 @@ function SWEP:Think()
 end
 
 function SWEP:DrawWorldModel( flags )
-	if !self:GetUserSight() and self:GetReloadingTime() <= CurTime() and GetConVar("stew_mod_mgsv"):GetBool() or self:GetHolster_Time() != 0 then
+	if IsValid(self:GetOwner()) and (!self:GetUserSight() and self:GetReloadingTime() <= CurTime() and GetConVar("stew_mod_mgsv"):GetBool() or self:GetHolster_Time() != 0) then
 		return false
 	else
 		self:DrawModel( flags )
@@ -356,7 +405,13 @@ waga = waga or Angle()
 
 local ptimei = 0
 hook.Add("CalcView", "STEW_TP", function( ply, pos, angles, fov )
-	if GetConVar("stew_camera"):GetBool() or (IsValid(ply:GetActiveWeapon()) and ply:GetActiveWeapon().STEW) then
+	local w = ply:GetActiveWeapon()
+	local scam = GetConVar("stew_camera"):GetInt()
+	if !IsValid(w) then
+		w = false
+	end
+	local ve = IsValid(ply:GetViewEntity()) and (ply != ply:GetViewEntity())
+	if (scam == 2) or (scam == 1 and w and w.STEW) and !ve then
 		local tang = waga
 		local tpos = Vector()
 		local tfov = fov_stand
@@ -406,6 +461,10 @@ hook.Add("CalcView", "STEW_TP", function( ply, pos, angles, fov )
 			fov = tfov,
 			drawviewer = true
 		}
+		
+		if w and !w.STEW then
+			view.fov = nil
+		end
 
 		globhit:Set( hitter )
 		globang:Set( tang )
@@ -420,11 +479,21 @@ tr1f = Vector()
 tr2f = Vector()
 local gunmode = 0 -- 0 is mgsv free mode
 local dong = Angle( 0, 000, 0 )
+local desire = Angle( 0, 000, 0 )
+local vel = 0
+local lastviewangles = Angle()
 hook.Add( "StartCommand", "STEW_StartCommand", function( ply, cmd )
 	if CLIENT then
-		if !(GetConVar("stew_camera"):GetBool() or (IsValid(ply:GetActiveWeapon()) and ply:GetActiveWeapon().STEW)) then
+		local w = ply:GetActiveWeapon()
+		local scam = GetConVar("stew_camera"):GetInt()
+		if !IsValid(w) then
+			w = false
+		end
+		local ve = IsValid(ply:GetViewEntity()) and (ply != ply:GetViewEntity())
+		if !((scam == 2) or (scam == 1 and w and w.STEW)) or ve then
 			waga:Set( cmd:GetViewAngles() )
 		else
+			local w = ply:GetActiveWeapon()
 			local time = 0
 			--debugoverlay.Cross(ply:EyePos(), 16, time)
 			--debugoverlay.Cross(globhit, 16, time)
@@ -445,7 +514,12 @@ hook.Add( "StartCommand", "STEW_StartCommand", function( ply, cmd )
 			--tr1f:Set(tr1.HitPos)
 			--tr2f:Set(tr2.HitPos)
 
-			waga:Add( Angle( cmd:GetMouseY() * 0.022, cmd:GetMouseX() * -0.022, 0 ) )
+			local muul = 1
+			if IsValid(w) and w.AdjustMouseSensitivity then
+				muul = w:AdjustMouseSensitivity() or muul
+			end
+			waga:Add( Angle( cmd:GetMouseY() * 0.022 * muul, cmd:GetMouseX() * -0.022 * muul, 0 ) )
+			waga:Sub( ( lastviewangles - cmd:GetViewAngles() ) )
 			waga.x = math.Clamp( waga.x, -89, 89 )
 			waga:Normalize()
 
@@ -455,7 +529,7 @@ hook.Add( "StartCommand", "STEW_StartCommand", function( ply, cmd )
 				if w.GetUserSight and w:GetUserSight() == false and GetConVar("stew_mod_mgsv"):GetBool() then
 					compatiblyaimed = true
 				elseif (w:GetNWBool( "insights", "shaa" ) == false) then
-					compatiblyaimed = true
+					--compatiblyaimed = true
 				elseif w.GetState and w:GetState() != 1 then
 					compatiblyaimed = true
 				end
@@ -467,15 +541,21 @@ hook.Add( "StartCommand", "STEW_StartCommand", function( ply, cmd )
 				local m2 = cmd:KeyDown( IN_MOVERIGHT ) and 1 or cmd:KeyDown( IN_MOVELEFT ) and -1 or 0
 				local m3 = cmd:KeyDown( IN_FORWARD+IN_BACK+IN_MOVELEFT+IN_MOVERIGHT ) and 1 or 0
 
+				vel = math.Approach( vel, ply:GetAbsVelocity():Length2D(), FrameTime()*250 )
+				--print("vel", vel)
+
 				local honk = Vector( 100 * m1, 100 * -m2, 0 )
 				honk = honk:Angle()
 				honk.y = honk.y + waga.y
-				if honk.x != 90 then
-					cmd:SetViewAngles( honk )
-					dong:Set(honk)
-				else
-					cmd:SetViewAngles( dong )
+				if m3 > 0 then
+					desire.y = honk.y
 				end
+				if honk.x != 90 then
+				end
+				local thingy = Lerp( Lerp( vel/100, 0, 100 )/100, 0.5, 0.5 )
+				--print("thingy", thingy)
+				dong.y = math.ApproachAngle( dong.y, desire.y, FrameTime()/(thingy/360) )
+				cmd:SetViewAngles( dong )
 
 				local thing = Matrix()
 				--thing:Rotate( Angle( 0, waga.y, 0 ) )
@@ -488,11 +568,14 @@ hook.Add( "StartCommand", "STEW_StartCommand", function( ply, cmd )
 				cmd:SetForwardMove( forwar )
 				cmd:SetSideMove( rightwar )
 			else
-				cmd:SetViewAngles( (tr2.HitPos-tr1.StartPos):Angle() )
-				dong:Set( (tr2.HitPos-tr1.StartPos):Angle() )
+				local planner = (tr2.HitPos-tr1.StartPos):Angle()
+				planner:Normalize()
+				cmd:SetViewAngles( planner )
+				dong:Set( planner )
+				desire:Set( planner )
 
-				local pingas = (tr2.HitPos-tr1.StartPos):Angle()
-				pingas:Normalize()
+				local pingas = Angle()
+				pingas:Set( planner )
 				pingas = ( cmd:GetViewAngles() - waga )
 		
 				local m1 = cmd:KeyDown( IN_FORWARD ) and 1 or cmd:KeyDown( IN_BACK ) and -1 or 0
@@ -509,6 +592,7 @@ hook.Add( "StartCommand", "STEW_StartCommand", function( ply, cmd )
 				cmd:SetForwardMove( forwar )
 				cmd:SetSideMove( rightwar )
 			end
+			lastviewangles:Set( cmd:GetViewAngles() )
 		end
 	end
 end)
@@ -532,7 +616,14 @@ hook.Add("HUDPaint", "STEW_3DCrosshair", function()
 		local ply = LocalPlayer()
 		local w = ply:GetActiveWeapon()
 		local wep = w
-		if IsValid(w) and w.STEW and (!GetConVar("stew_mod_mgsv"):GetBool() or w:GetUserSight()) then
+		
+		local scam = GetConVar("stew_camera"):GetInt()
+		if !IsValid(w) then
+			w = false
+		end
+
+		local ve = IsValid(ply:GetViewEntity()) and (ply != ply:GetViewEntity())
+		if ((scam >= 1 and w and w.STEW) and (!GetConVar("stew_mod_mgsv"):GetBool() or w:GetUserSight())) then
 			local s, w, h = ScreenScale, ScrW(), ScrH()
 			local pl_x, pl_y = w/2, h/2
 
@@ -560,7 +651,12 @@ hook.Add("HUDPaint", "STEW_3DCrosshair", function()
 
 			local touse1 = col_1
 			local touse2 = col_2
-			if util.TraceLine({start = tr2f, endpos = tr1f, filter = ply}).Fraction != 1 and !tr2f:IsEqualTol(tr1f, 1) then
+			if ve then
+				pl_x = tr1f:ToScreen().x
+				pl_y = tr1f:ToScreen().y
+				ps_x = tr1f:ToScreen().x
+				ps_y = tr1f:ToScreen().y
+			elseif util.TraceLine({start = tr2f, endpos = tr1f, filter = ply}).Fraction != 1 and !tr2f:IsEqualTol(tr1f, 1) then
 				touse1 = col_4
 				touse2 = col_3
 				pl_x = tr1f:ToScreen().x

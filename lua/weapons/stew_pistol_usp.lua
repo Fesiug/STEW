@@ -28,8 +28,8 @@ SWEP.HoldTypeSprint			= "passive"
 
 SWEP.GestureFire			= { ACT_HL2MP_GESTURE_RANGE_ATTACK_SMG1, 0 }
 SWEP.GestureReload			= { ACT_HL2MP_GESTURE_RELOAD_PISTOL, 0 }
-SWEP.GestureDraw			= { ACT_GMOD_GESTURE_ITEM_THROW, 0.75 }
-SWEP.GestureHolster			= { ACT_GMOD_GESTURE_MELEE_SHOVE_1HAND, 0.6 }
+SWEP.GestureDraw			= { ACT_GMOD_GESTURE_ITEM_THROW, 0.9 }
+SWEP.GestureHolster			= { ACT_GMOD_GESTURE_MELEE_SHOVE_1HAND, 0.45 }
 
 SWEP.Sound_Blast			= STEW.SoundBank["blast_45acp"]
 SWEP.Sound_Mech				= {}
@@ -51,11 +51,11 @@ SWEP.Firemodes				= {
 --
 -- Damage
 --
-SWEP.DamageNear				= 30
+SWEP.DamageNear				= STEW.Profile["45acp"].near
 SWEP.RangeNear				= 100
-SWEP.DamageFar				= 22
+SWEP.DamageFar				= STEW.Profile["45acp"].far
 SWEP.RangeFar				= 300
-SWEP.Force					= 2
+SWEP.Force					= STEW.Profile["45acp"].force
 
 -- misc
 SWEP.ReloadingTime			= 1.5
