@@ -19,7 +19,6 @@ SWEP.XHairMode				= "pistol"
 --
 -- Appearance
 --
-SWEP.UseHands				= true
 SWEP.ViewModel				= "models/weapons/cstrike/c_rif_famas.mdl"
 SWEP.WorldModel				= "models/weapons/w_rif_famas.mdl"
 SWEP.ViewModelFOV			= 75
@@ -62,7 +61,7 @@ SWEP.Force					= 5
 
 -- misc
 SWEP.ReloadingTime			= 2
-SWEP.ReloadingLoadTime		= 1
+SWEP.LoadIn		= 1
 
 
 --
@@ -100,18 +99,9 @@ function SWEP:SetupDataTables()
 	self:NetworkVar("Float", 4, "Holster_Time")
 	self:NetworkVar("Float", 5, "SprintPer")
 
-	self:NetworkVar("Entity", 4, "Holster_Entity")
+	self:NetworkVar("Entity", 0, "Holster_Entity")
 	self.Primary.DefaultClip = self.Primary.ClipSize * 1
 	self:SetFiremode(1)
-end
-
-
-local function quickie(en)
-	if istable(en) then
-		return table.Random(en)
-	else
-		return en
-	end
 end
 
 local function getdamagefromrange( dmg_near, dmg_far, range_near, range_far, dist )
@@ -300,7 +290,7 @@ function SWEP:Reload()
 	self:CallOnClient("TPReload")
 
 	self:SetReloadingTime(CurTime() + self.ReloadingTime)
-	self:SetLoadingTime(CurTime() + self.ReloadingLoadTime)
+	self:SetLoadingTime(CurTime() + self.LoadIn)
 end
 
 function SWEP:TPAttack()
@@ -384,12 +374,12 @@ end
 
 
 local stance = 0
-local pose_stand = Vector( 14, -80, 0 )
-local pose_duck = Vector( 10, -64, 0 )
-local pose_prone = Vector( 8, -54, 0 )
-local pose_stand_aim = Vector( 18, -64, 0 )
-local pose_duck_aim = Vector( 14, -48, 0 )
-local pose_prone_aim = Vector( 20, -12, 0 )
+local pose_stand = Vector( 12, -100, 0 )
+local pose_duck = Vector( 12, -64, 0 )
+local pose_prone = Vector( 12, -64, 0 )
+local pose_stand_aim = Vector( 18, -32, 0 )
+local pose_duck_aim = Vector( 18, -32, 0 )
+local pose_prone_aim = Vector( 18, -12, 0 )
 
 local fov_stand = 76
 local fov_duck = 72
@@ -397,7 +387,7 @@ local fov_prone = 70
 local fov_aim = 65
 local eye_stand = 64
 local eye_duck = 44
-local eye_prone = 24
+local eye_prone = 22
 local globhit = Vector()
 local globang = Angle()
 
