@@ -239,12 +239,12 @@ function SWEP:GetFiremodeName(cust)
 	local ftn = self:GetFiremodeTable(cust or self:GetFiremode())
 	if ftn.Name then
 		ftn = ftn.Name
-	elseif ftn.Count == math.huge then
+	elseif ftn.Mode == math.huge then
 		ftn = "Automatic"
-	elseif ftn.Count == 1 then
+	elseif ftn.Mode == 1 then
 		ftn = "Semi-automatic"
 	else
-		ftn = ftn.Count .. "-round burst"
+		ftn = ftn.Mode .. "-round burst"
 	end
 
 	return ftn
